@@ -54,3 +54,7 @@
 (def vector-intro [1 2 3 4])
 (conj vector-intro 5) ;; Add to end of vector
 (vector "creepy" "full" "moon") ;; Can also use vector function
+
+(defn my-into
+  [target additions]
+  (apply conj target additions))
