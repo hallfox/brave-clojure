@@ -2,6 +2,12 @@
   (require [clojure.set :as set])
   (:gen-class))
 
+;;       1
+;;      2 3
+;;     4 5 6
+;;    7 8 9 10
+;; 11 12 13 14 15
+
 (declare successful-move prompt-move game-over query-rows)
 
 (defn tri*
@@ -59,3 +65,88 @@
         neighbor (+ 1 row pos)
         destination (+ 2 row neighbor)]
     (connect board max-pos pos neighbor destination)))
+
+(defn add-pos
+  "Pegs the position and performs connections"
+  [board max-pos pos]
+  (let [pegged-board (assoc-in board [pos :pegged] true)]
+    (reduce (fn [new-board connection-creation-fn]
+              (connection-creation-fn new-board max-pos pos))
+              pegged-board
+              [connect-right connect-down-left connect-down-right])))
+
+(defn new-board
+  "Creates a new board with the given number of rows"
+  [rows]
+  (let [initial-board {:rows rows}
+        max-pos (row-tri rows)]
+    (reduce (fn [board pos] (add-pos board max-pos pos))
+            initial-board
+            (range 1 (inc max-pos)))))
+
+(defn pegged?
+  "Does the position have a peg in it?"
+  [board pos]
+  (get-in board [pos :pegged]))
+
+(defn remove-peg
+  "Take the peg at a given position out of the board"
+  [board pos]
+  (assoc-in board [pos :pegged] false))
+
+(defn place-peg
+  "Put a peg in the board at given position"
+  [board pos]
+  (assoc-in board [pos :pegged] true))
+
+(defn move-peg
+  "Take a peg out of p1 and place it in p2"
+  [board p1 p2]
+  (place-peg (remove-peg board p1) p2))
+
+(defn valid-moves
+  "Return a map of all valid moves for pos, where the
+  destination and the value is the jumped position"
+  [board pos]
+  (into {}
+        (filter (fn [[destination jumped]]
+                  (and (not (pegged? board destination))
+                       (pegged? board jumped)))
+                (get-in board [pos :connections]))))
+
+(defn valid-move?
+  "Return jumped position if the move from p1 to p2 is valid, nil otherwise"
+  [board p1 p2]
+  (get (valid-moves board p1) p2))
+
+(defn make-move
+  "Move peg from p1 to p2, removing jumped peg"
+  [board p1 p2]
+  (if-let [jumped (valid-move? board p1 p2)]
+    (move-peg (remove-peg board jumped) p1 p2)))
+
+(defn can-move?
+  "Do any of the pegged positions have valid moves?"
+  [board]
+  (some (comp not-empty (partial valid-moves board))
+        (map first (filter #(get (second %) :pegged) board))))
+
+(def alpha-start 97)
+(def alpha-end 123)
+(def letters (map (comp str char) (range alpha-start alpha-end)))
+(def pos-chars 3)
+
+;; Exercises
+
+(defn attr
+  "Creates a function that gets character's attribute by name"
+  [attribute-name]
+  (comp attribute-name :attributes))
+
+(defn my-comp
+  "My implementation of comp"
+  ([] identity)
+  ([f] f)
+  ([f g] (fn [& args] (f (apply g args))))
+  ([f g & fs]
+   (apply my-comp (conj fs (my-comp f g)))))
